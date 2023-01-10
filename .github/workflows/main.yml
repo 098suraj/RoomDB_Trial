@@ -41,17 +41,20 @@ jobs:
         
       - name: Lint
         run: ./gradlew lint
-
-      - name: Build debug apk
-        run: ./gradlew assembleDebug --stacktrace
+        
       - name: Generate App Version Name
         run: echo "VERSION_NAME=$(git describe --tags | sed 's/\(.*\)-/\1./' | sed 's/\(.*\)-/\1+/')" >> $GITHUB_ENV
+        
       - name: Bump Version
         uses: chkfung/android-version-actions@v1.1
         with:
           gradlePath: app/build.gradle.kts
           versionCode: ${{ github.run_number }}
           versionName: ${{ env.VERSION_NAME }}   
+          
+      - name: Build debug apk
+        run: ./gradlew assembleDebug --stacktrace
+     
      
       - name: Upload debug apk
         uses: actions/upload-artifact@v1
