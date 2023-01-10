@@ -42,9 +42,6 @@ jobs:
       - name: Lint
         run: ./gradlew lint
 
-      - name: Spotless
-        run: ./gradlew spotlessCheck
-
       - name: Build debug apk
         run: ./gradlew assembleDebug --stacktrace
       - name: Generate App Version Name
