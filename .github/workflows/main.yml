@@ -63,7 +63,9 @@ jobs:
     needs: [ generate-apk ]
     runs-on: ubuntu-latest
     steps:
-
+      - name: get repository name
+        run: echo "REPOSITORY_NAME=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
+      
       - name: Download APK from build
         uses: actions/download-artifact@v1
         with:
