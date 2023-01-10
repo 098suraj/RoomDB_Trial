@@ -10,12 +10,14 @@ on:
 
 jobs: 
  
-
   generate-apk: # Job to generate debug apk
     name: ⚙️Generate APK
     runs-on: ubuntu-latest
     steps:
-
+    
+      - name: get repository name
+        run: echo "REPOSITORY_NAME=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
+      
       - name: Checkout code
         uses: actions/checkout@v2
 
@@ -23,17 +25,44 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 11.0.13
+      
+      - name: Cache Gradle and wrapper
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Make gradle executable
         run: chmod +x ./gradlew
+        
+      - name: Lint
+        run: ./gradlew lint
+
+      - name: Detekt
+        run: ./gradlew detekt
+
+      - name: Spotless
+        run: ./gradlew spotlessCheck
 
       - name: Build debug apk
         run: ./gradlew assembleDebug --stacktrace
-
+      - name: Generate App Version Name
+        run: echo "VERSION_NAME=$(git describe --tags | sed 's/\(.*\)-/\1./' | sed 's/\(.*\)-/\1+/')" >> $GITHUB_ENV
+      - name: Bump Version
+        uses: chkfung/android-version-actions@v1.1
+        with:
+          gradlePath: app/build.gradle.kts
+          versionCode: ${{ github.run_number }}
+          versionName: ${{ env.VERSION_NAME }}   
+     
       - name: Upload debug apk
         uses: actions/upload-artifact@v1
         with:
-          name: Android-CI-CD
+          name: ${{ env.REPOSITORY_NAME }}
           path: app/build/outputs/apk/debug/app-debug.apk
 
   create-release: # Job to create a new github release and upload the generated apk
@@ -45,7 +74,7 @@ jobs:
       - name: Download APK from build
         uses: actions/download-artifact@v1
         with:
-          name: Android-CI-CD
+          name:  ${{ env.REPOSITORY_NAME }}
 
       - name: Create Release
         id: create_release
@@ -53,8 +82,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ github.run_number }}
+          release_name:  ${{ env.REPOSITORY_NAME }} v${{ github.run_number }}
 
       - name: Upload Release APK
         id: upload_release_asset
@@ -62,7 +91,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: Android-CI-CD/app-debug.apk
-          asset_name: Android-CI-CD.apk
-          asset_content_type: application/zip
+         upload_url: ${{ steps.create_release.outputs.upload_url }}
+         asset_path: apk/app-debug.apk
+         asset_name:  ${{ env.REPOSITORY_NAME }}.apk
+         asset_content_type: application/zip
